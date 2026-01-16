@@ -1,0 +1,6 @@
+__all__ = [
+    "train_imagenet",
+    "train_detection",
+    "train_reid",
+    "train_fusion"
+]

@@ -1,0 +1,21 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class FPN(nn.Module):
+    def __init__(self, in_channels=[256, 512], out_ch=256):
+        super().__init__()
+
+        self.lat_c4 = nn.Conv2d(in_channels[0], out_ch, 1)
+        self.lat_c5 = nn.Conv2d(in_channels[1], out_ch, 1)
+
+        self.out_c4 = nn.Conv2d(out_ch, out_ch, 3, padding=1)
+        self.out_c5 = nn.Conv2d(out_ch, out_ch, 3, padding=1)
+
+    def forward(self, c4, c5):
+        p5 = self.lat_c5(c5)
+        p4 = self.lat_c4(c4) + F.interpolate(
+            p5, scale_factor=2, mode="nearest"
+        )
+
+        return self.out_c4(p4), self.out_c5(p5)

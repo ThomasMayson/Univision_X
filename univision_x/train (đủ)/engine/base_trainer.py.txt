@@ -1,0 +1,16 @@
+class BaseTrainer:
+    def __init__(self, model, optimizer, scheduler, device):
+        self.model = model
+        self.optimizer = optimizer
+        self.scheduler = scheduler
+        self.device = device
+
+    def train_epoch(self, loader):
+        raise NotImplementedError
+
+    def train(self, loader, epochs):
+        for epoch in range(epochs):
+            loss = self.train_epoch(loader)
+            if self.scheduler:
+                self.scheduler.step()
+            print(f"[Epoch {epoch}] loss={loss:.4f}")

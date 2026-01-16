@@ -1,0 +1,35 @@
+import torch
+import torch.nn as nn
+from models.backbone.univisionx_backbone import UniVisionXBackbone
+
+
+class UniVisionX_ImageNet(nn.Module):
+    """
+    ImageNet pretraining model for UniVision-X
+    Output: class logits
+    """
+    def __init__(self, num_classes=1000):
+        super().__init__()
+
+        self.backbone = UniVisionXBackbone()
+
+        # Global average pooling
+        self.pool = nn.AdaptiveAvgPool2d(1)
+
+        # Classification head
+        self.fc = nn.Linear(512, num_classes)
+
+        self._init_weights()
+
+    def _init_weights(self):
+        nn.init.trunc_normal_(self.fc.weight, std=0.02)
+        nn.init.constant_(self.fc.bias, 0)
+
+    def forward(self, x):
+        """
+        x: [B,3,224,224]
+        """
+        _, _, c5 = self.backbone(x)
+        feat = self.pool(c5).flatten(1)
+        logits = self.fc(feat)
+        return logits

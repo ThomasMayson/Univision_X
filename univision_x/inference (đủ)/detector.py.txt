@@ -1,0 +1,20 @@
+import torch
+
+class Detector:
+    def __init__(self, model, device):
+        self.model = model.to(device)
+        self.device = device
+        self.model.eval()
+
+    @torch.no_grad()
+    def __call__(self, img):
+        """
+        img: Tensor [1,3,H,W]
+        return: boxes_xywh (Nx4), scores, classes
+        """
+        preds = self.model(img.to(self.device))
+        # giả định model đã decode sẵn
+        boxes = preds["boxes"]
+        scores = preds["scores"]
+        labels = preds["labels"]
+        return boxes, scores, labels

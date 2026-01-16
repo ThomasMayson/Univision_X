@@ -1,0 +1,64 @@
+import os
+import cv2
+import torch
+from torch.utils.data import Dataset
+
+
+class FusionDataset(Dataset):
+    """
+    Dataset for RGB + Thermal object detection (YOLO format)
+    """
+    def __init__(
+        self,
+        rgb_dir,
+        thermal_dir,
+        label_dir,
+        img_size=640
+    ):
+        self.rgb_dir = rgb_dir
+        self.thermal_dir = thermal_dir
+        self.label_dir = label_dir
+        self.img_size = img_size
+
+        self.images = sorted(os.listdir(rgb_dir))
+
+    def __len__(self):
+        return len(self.images)
+
+    def load_labels(self, path):
+        """
+        YOLO format:
+        class xc yc w h (normalized)
+        """
+        labels = []
+        with open(path, "r") as f:
+            for line in f.readlines():
+                labels.append(list(map(float, line.split())))
+        return torch.tensor(labels) if labels else torch.zeros((0,5))
+
+    def __getitem__(self, idx):
+        name = self.images[idx]
+
+        rgb = cv2.imread(os.path.join(self.rgb_dir, name))
+        rgb = cv2.cvtColor(rgb, cv2.COLOR_BGR2RGB)
+
+        thermal = cv2.imread(
+            os.path.join(self.thermal_dir, name),
+            cv2.IMREAD_GRAYSCALE
+        )
+
+        # resize
+        rgb = cv2.resize(rgb, (self.img_size, self.img_size))
+        thermal = cv2.resize(thermal, (self.img_size, self.img_size))
+
+        # to tensor
+        rgb = torch.from_numpy(rgb).permute(2,0,1).float() / 255.
+        thermal = torch.from_numpy(thermal).unsqueeze(0).float() / 255.
+
+        label_path = os.path.join(
+            self.label_dir,
+            name.replace(".jpg", ".txt")
+        )
+        labels = self.load_labels(label_path)
+
+        return rgb, thermal, labels

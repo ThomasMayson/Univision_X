@@ -1,0 +1,31 @@
+import torch
+import torch.nn as nn
+from models.backbone.univisionx_backbone import UniVisionXBackbone
+
+
+class DualBackbone(nn.Module):
+    """
+    Dual backbone for RGB + Thermal
+    Thermal backbone expects 1-channel input
+    """
+    def __init__(self):
+        super().__init__()
+
+        self.rgb_backbone = UniVisionXBackbone()
+        self.thermal_backbone = UniVisionXBackbone()
+
+        # adapt thermal input: 1ch -> 3ch
+        self.thermal_adapter = nn.Conv2d(1, 3, kernel_size=1)
+
+    def forward(self, rgb, thermal):
+        """
+        rgb:     [B,3,H,W]
+        thermal: [B,1,H,W]
+        """
+        thermal = self.thermal_adapter(thermal)
+
+        _, rgb_c4, rgb_c5 = self.rgb_backbone(rgb)
+        _, th_c4, th_c5 = self.thermal_backbone(thermal)
+
+        return (rgb_c4, rgb_c5), (th_c4, th_c5)
+

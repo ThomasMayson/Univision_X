@@ -1,0 +1,43 @@
+import torch
+import cv2
+from fusion.fusion_detector import FusionDetector
+from detection.decoder import YOLOv8Decoder
+
+
+@torch.no_grad()
+def infer_fusion(rgb_path, thermal_path):
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    model = FusionDetector(num_classes=80).to(device)
+    model.load_state_dict(torch.load("weights/fusion_detector.pth"))
+    model.eval()
+
+    rgb = cv2.imread(rgb_path)
+    thermal = cv2.imread(thermal_path, cv2.IMREAD_GRAYSCALE)
+
+    rgb = cv2.resize(rgb, (640,640))
+    thermal = cv2.resize(thermal, (640,640))
+
+    rgb = torch.from_numpy(rgb).permute(2,0,1).float()/255.
+    thermal = torch.from_numpy(thermal).unsqueeze(0).float()/255.
+
+    rgb = rgb.unsqueeze(0).to(device)
+    thermal = thermal.unsqueeze(0).to(device)
+
+    decoder = YOLOv8Decoder(stride=16)
+
+    preds = model(rgb, thermal)
+
+    results = []
+    for p in preds:
+        box, obj, cls = decoder(p)
+        score, label = cls.max(-1)
+        mask = (obj.squeeze() * score.squeeze()) > 0.5
+        results.append((box[0][mask], label[mask]))
+
+    return results
+
+
+if __name__ == "__main__":
+    out = infer_fusion("rgb.jpg", "thermal.jpg")
+    print(out)

@@ -1,0 +1,35 @@
+import torch
+from torchvision.ops import roi_align
+
+class VisionPipeline:
+    def __init__(self, detector, reid, tracker, img_size):
+        self.detector = detector
+        self.reid = reid
+        self.tracker = tracker
+        self.img_size = img_size
+
+    def crop_boxes(self, img, boxes):
+        """
+        img: [1,3,H,W], boxes: Nx4 xywh
+        """
+        rois = []
+        for b in boxes:
+            x,y,w,h = b
+            rois.append([0, x-w/2, y-h/2, x+w/2, y+h/2])
+        rois = torch.tensor(rois, dtype=torch.float32)
+        return roi_align(img, rois, output_size=(256,128))
+
+    def step(self, img):
+        boxes, scores, _ = self.detector(img)
+
+        if len(boxes) == 0:
+            return []
+
+        crops = self.crop_boxes(img, boxes)
+        embeddings = self.reid(crops)
+
+        tracks = self.tracker.update(
+            boxes.cpu().numpy(),
+            embeddings.cpu().numpy()
+        )
+        return tracks

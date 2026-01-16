@@ -1,0 +1,40 @@
+import os
+from PIL import Image
+from torch.utils.data import Dataset
+from torchvision import transforms
+
+
+class ReIDDataset(Dataset):
+    """
+    Structure:
+    reid_dataset/
+      ├── 0001/
+      ├── 0002/
+    """
+    def __init__(self, root, train=True):
+        self.samples = []
+        self.train = train
+
+        for pid in sorted(os.listdir(root)):
+            pid_path = os.path.join(root, pid)
+            if not os.path.isdir(pid_path):
+                continue
+            for img in os.listdir(pid_path):
+                self.samples.append(
+                    (os.path.join(pid_path, img), int(pid))
+                )
+
+        self.tf = transforms.Compose([
+            transforms.Resize((256,128)),
+            transforms.RandomHorizontalFlip() if train else transforms.Lambda(lambda x:x),
+            transforms.ToTensor(),
+            transforms.Normalize([0.5]*3, [0.5]*3)
+        ])
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        path, pid = self.samples[idx]
+        img = Image.open(path).convert("RGB")
+        return self.tf(img), pid

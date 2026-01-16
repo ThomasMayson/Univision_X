@@ -1,0 +1,38 @@
+import torch
+import torch.nn as nn
+from detection.fpn import FPN
+from detection.yolo_head import YOLOHead
+from .dual_backbone import DualBackbone
+
+
+class FusionDetector(nn.Module):
+    """
+    RGB + Thermal Fusion Detection Model
+    """
+    def __init__(self, num_classes):
+        super().__init__()
+
+        self.backbones = DualBackbone()
+
+        # fusion conv
+        self.fuse_c4 = nn.Sequential(
+            nn.Conv2d(256 * 2, 256, 1),
+            nn.BatchNorm2d(256),
+            nn.GELU()
+        )
+
+        self.fuse_c5 = nn.Sequential(
+            nn.Conv2d(512 * 2, 512, 1),
+            nn.BatchNorm2d(512),
+            nn.GELU()
+        )
+
+        self.fpn = FPN(in_channels=[256, 512], out_ch=256)
+
+        self.head4 = YOLOHead(256, num_classes)
+        self.head5 = YOLOHead(256, num_classes)
+
+    def forward(self, rgb, thermal):
+        (rgb_c4, rgb_c5), (th_c4, th_c5) = self.backbones(rgb, thermal)
+
+        c4 = self.fuse_c4_

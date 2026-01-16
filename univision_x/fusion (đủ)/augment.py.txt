@@ -1,0 +1,43 @@
+import random
+import cv2
+import numpy as np
+import torch
+
+class FusionAugment:
+    def __init__(
+        self,
+        hflip_prob=0.5,
+        blur_prob=0.2,
+        noise_prob=0.2
+    ):
+        self.hflip_prob = hflip_prob
+        self.blur_prob = blur_prob
+        self.noise_prob = noise_prob
+
+    def horizontal_flip(self, rgb, thermal):
+        if random.random() < self.hflip_prob:
+            rgb = torch.flip(rgb, dims=[2])
+            thermal = torch.flip(thermal, dims=[2])
+        return rgb, thermal
+
+    def blur_rgb(self, rgb):
+        if random.random() < self.blur_prob:
+            k = random.choice([3,5])
+            rgb = cv2.GaussianBlur(
+                rgb.permute(1,2,0).numpy(),
+                (k,k), 0
+            )
+            rgb = torch.from_numpy(rgb).permute(2,0,1)
+        return rgb
+
+    def noise_rgb(self, rgb):
+        if random.random() < self.noise_prob:
+            noise = torch.randn_like(rgb) * 0.05
+            rgb = torch.clamp(rgb + noise, 0, 1)
+        return rgb
+
+    def __call__(self, rgb, thermal):
+        rgb, thermal = self.horizontal_flip(rgb, thermal)
+        rgb = self.blur_rgb(rgb)
+        rgb = self.noise_rgb(rgb)
+        return rgb, thermal

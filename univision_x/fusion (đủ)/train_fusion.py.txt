@@ -1,0 +1,74 @@
+import torch
+from torch.utils.data import DataLoader
+
+from fusion.dataset import FusionDataset
+from fusion.augment import FusionAugment
+from fusion.fusion_detector import FusionDetector
+
+from detection.loss import YOLOLoss
+from detection.assigner import TaskAlignedAssigner
+from detection.decoder import YOLOv8Decoder
+
+
+def train_fusion():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    dataset = FusionDataset(
+        rgb_dir="fusion_dataset/images/rgb/train",
+        thermal_dir="fusion_dataset/images/thermal/train",
+        label_dir="fusion_dataset/labels/train"
+    )
+
+    augment = FusionAugment()
+    loader = DataLoader(dataset, batch_size=4, shuffle=True)
+
+    model = FusionDetector(num_classes=80).to(device)
+
+    # load ImageNet pretrained backbone
+    ckpt = torch.load("weights/univisionx_imagenet_backbone.pth")
+    model.backbones.rgb_backbone.load_state_dict(ckpt, strict=False)
+    model.backbones.thermal_backbone.load_state_dict(ckpt, strict=False)
+
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=1e-4, weight_decay=0.01
+    )
+
+    loss_fn = YOLOLoss(num_classes=80)
+    assigner = TaskAlignedAssigner()
+    decoder = YOLOv8Decoder(stride=16)
+
+    model.train()
+    for epoch in range(50):
+        total_loss = 0
+        for rgb, thermal, targets in loader:
+            rgb, thermal = rgb.to(device), thermal.to(device)
+            rgb, thermal = augment(rgb, thermal)
+
+            preds = model(rgb, thermal)
+
+            loss = 0
+            for p in preds:
+                box, obj, cls = decoder(p)
+                tgt_box, tgt_obj, tgt_cls = assigner.assign(
+                    box[0],
+                    cls[0],
+                    targets[:,1:].to(device),
+                    targets[:,0].long().to(device)
+                )
+                loss += loss_fn(
+                    torch.cat([box[0], obj[0], cls[0]], dim=1),
+                    tgt_box, tgt_obj, tgt_cls
+                )
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+
+        print(f"[Fusion] Epoch {epoch}: loss={total_loss/len(loader):.4f}")
+
+    torch.save(model.state_dict(), "weights/fusion_detector.pth")
+
+
+if __name__ == "__main__":
+    train_fusion()

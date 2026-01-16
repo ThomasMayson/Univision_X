@@ -1,0 +1,51 @@
+import torch
+from torch.utils.data import DataLoader
+
+from fusion.model import FusionDetector
+from fusion.dataset import FusionDataset
+from detection.loss import YOLOv8Loss
+from engine.base_trainer import BaseTrainer
+
+
+class FusionTrainer(BaseTrainer):
+    def __init__(self, model, optimizer, scheduler, device):
+        super().__init__(model, optimizer, scheduler, device)
+        self.loss_fn = YOLOv8Loss()
+
+    def train_epoch(self, loader):
+        self.model.train()
+        total_loss = 0
+
+        for rgb, thermal, targets in loader:
+            rgb = rgb.to(self.device)
+            thermal = thermal.to(self.device)
+            targets = [{k: v.to(self.device) for k, v in t.items()} for t in targets]
+
+            preds = self.model(rgb, thermal)
+            loss = self.loss_fn(preds, targets)
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+
+            total_loss += loss.item()
+
+        return total_loss / len(loader)
+
+
+def main():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    dataset = FusionDataset("data/fusion")
+    loader = DataLoader(dataset, batch_size=8, shuffle=True, collate_fn=dataset.collate_fn)
+
+    model = FusionDetector(num_classes=80).to(device)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=2e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 80)
+
+    trainer = FusionTrainer(model, optimizer, scheduler, device)
+    trainer.train(loader, epochs=80)
+
+
+if __name__ == "__main__":
+    main()

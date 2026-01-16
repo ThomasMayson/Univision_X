@@ -1,0 +1,4 @@
+from .fusion_detector import FusionDetector
+from .dual_backbone import DualBackbone
+
+__all__ = ["FusionDetector", "DualBackbone"]

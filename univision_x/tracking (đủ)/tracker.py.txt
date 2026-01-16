@@ -1,0 +1,48 @@
+import numpy as np
+from .kalman_filter import KalmanFilter
+from .track import Track
+from .metrics import cosine_distance
+from .matching import hungarian_matching
+
+class DeepSORTTracker:
+    def __init__(self, max_age=30, dist_thresh=0.3):
+        self.tracks = []
+        self.next_id = 0
+        self.max_age = max_age
+        self.dist_thresh = dist_thresh
+        self.kf = KalmanFilter()
+
+    def update(self, detections, embeddings):
+        # predict
+        for t in self.tracks:
+            t.predict(self.kf)
+
+        # cost matrix
+        cost = np.zeros((len(self.tracks), len(detections)))
+        for i, t in enumerate(self.tracks):
+            for j, emb in enumerate(embeddings):
+                cost[i, j] = cosine_distance(t.embedding, emb)
+
+        matches, unmatched = hungarian_matching(cost, self.dist_thresh)
+
+        # update matched
+        for ti, di in matches:
+            self.tracks[ti].update(self.kf, detections[di], embeddings[di])
+
+        # new tracks
+        for di in unmatched:
+            mean, cov = self.kf.initiate(detections[di])
+            self.tracks.append(
+                Track(mean, cov, self.next_id, embeddings[di])
+            )
+            self.next_id += 1
+
+        # remove dead
+        self.tracks = [
+            t for t in self.tracks
+            if t.time_since_update < self.max_age
+        ]
+
+        return [
+            t for t in self.tracks if t.is_confirmed
+        ]

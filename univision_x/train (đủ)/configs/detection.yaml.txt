@@ -1,0 +1,27 @@
+task: detection
+
+dataset:
+  type: YOLO
+  root: data/detection
+  img_size: 640
+  num_classes: 80
+
+model:
+  name: UniVisionX_Detector
+  pretrained_backbone: weights/univisionx_backbone.pth
+
+train:
+  epochs: 100
+  batch_size: 16
+  optimizer:
+    type: AdamW
+    lr: 0.0002
+  scheduler:
+    type: CosineAnnealing
+    T_max: 100
+
+loss:
+  type: YOLOv8
+  box: 7.5
+  obj: 1.0
+  cls: 0.5

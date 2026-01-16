@@ -1,0 +1,6 @@
+class ByteTrack:
+    """
+    Tracking không cần ReID – dùng confidence + IoU
+    """
+    def __init__(self):
+        pass

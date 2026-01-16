@@ -1,0 +1,27 @@
+import torch
+
+class YOLOv8Decoder:
+    def __init__(self, stride):
+        self.stride = stride
+
+    def __call__(self, pred):
+        B, _, H, W = pred.shape
+        pred = pred.permute(0,2,3,1)
+
+        box = pred[..., :4].sigmoid()
+        obj = pred[..., 4:5].sigmoid()
+        cls = pred[..., 5:].sigmoid()
+
+        y, x = torch.meshgrid(
+            torch.arange(H), torch.arange(W), indexing="ij"
+        )
+        grid = torch.stack((x,y),2).to(pred.device)
+
+        box[..., :2] = (box[..., :2] + grid) * self.stride
+        box[..., 2:] = torch.exp(box[..., 2:]) * self.stride
+
+        return (
+            box.reshape(B,-1,4),
+            obj.reshape(B,-1,1),
+            cls.reshape(B,-1,cls.shape[-1])
+        )

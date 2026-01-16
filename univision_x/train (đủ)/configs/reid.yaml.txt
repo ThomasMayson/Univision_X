@@ -1,0 +1,25 @@
+task: reid
+
+dataset:
+  type: ReID
+  root: data/reid
+  img_size: [256, 128]
+
+model:
+  name: ReIDEncoder
+  emb_dim: 128
+
+train:
+  epochs: 60
+  batch_size: 64
+  optimizer:
+    type: Adam
+    lr: 0.0003
+
+loss:
+  ce: true
+  triplet:
+    margin: 0.3
+
+output:
+  encoder_weight: weights/reid_encoder.pth

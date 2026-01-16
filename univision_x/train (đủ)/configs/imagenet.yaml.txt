@@ -1,0 +1,24 @@
+task: classification
+
+dataset:
+  type: ImageNet
+  root: imagenet/train
+  img_size: 224
+
+model:
+  name: UniVisionX_ImageNet
+  num_classes: 1000
+
+train:
+  epochs: 300
+  batch_size: 256
+  optimizer:
+    type: AdamW
+    lr: 0.001
+    weight_decay: 0.05
+  scheduler:
+    type: CosineAnnealing
+    T_max: 300
+
+output:
+  backbone_weight: weights/univisionx_backbone.pth

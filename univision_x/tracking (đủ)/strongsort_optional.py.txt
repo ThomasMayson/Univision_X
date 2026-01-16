@@ -1,0 +1,8 @@
+import numpy as np
+
+class EMAEmbedding:
+    def __init__(self, alpha=0.9):
+        self.alpha = alpha
+
+    def update(self, old, new):
+        return self.alpha * old + (1 - self.alpha) * new

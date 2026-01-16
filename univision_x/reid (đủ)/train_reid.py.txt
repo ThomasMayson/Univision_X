@@ -1,0 +1,50 @@
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
+
+from reid.model import ReIDEncoder
+from reid.dataset import ReIDDataset
+
+
+class ReIDClassifier(nn.Module):
+    def __init__(self, emb_dim, num_ids):
+        super().__init__()
+        self.encoder = ReIDEncoder(emb_dim)
+        self.classifier = nn.Linear(emb_dim, num_ids)
+
+    def forward(self, x):
+        emb = self.encoder(x)
+        return emb, self.classifier(emb)
+
+
+def train_reid():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    ds = ReIDDataset("reid_dataset/train")
+    loader = DataLoader(ds, batch_size=32, shuffle=True)
+
+    model = ReIDClassifier(128, num_ids=1000).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
+    ce = nn.CrossEntropyLoss()
+
+    for epoch in range(60):
+        model.train()
+        loss_sum = 0
+
+        for img, pid in loader:
+            img, pid = img.to(device), pid.to(device)
+            emb, logits = model(img)
+            loss = ce(logits, pid)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            loss_sum += loss.item()
+
+        print(f"[ReID] Epoch {epoch}: loss={loss_sum/len(loader):.4f}")
+
+    torch.save(model.encoder.state_dict(), "weights/reid_encoder.pth")
+
+
+if __name__ == "__main__":
+    train_reid()

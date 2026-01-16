@@ -1,0 +1,7 @@
+from tracking import DeepSORTTracker
+
+def build_tracker():
+    return DeepSORTTracker(
+        max_age=30,
+        dist_thresh=0.3
+    )

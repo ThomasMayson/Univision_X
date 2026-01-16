@@ -1,0 +1,18 @@
+import cv2
+
+def draw_tracks(frame, tracks):
+    for t in tracks:
+        x,y,w,h = map(int, t.to_bbox())
+        cv2.rectangle(
+            frame,
+            (x-w//2, y-h//2),
+            (x+w//2, y+h//2),
+            (0,255,0), 2
+        )
+        cv2.putText(
+            frame, f"ID {t.id}",
+            (x-w//2, y-h//2-5),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6, (0,255,0), 2
+        )
+    return frame

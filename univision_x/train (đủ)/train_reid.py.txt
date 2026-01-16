@@ -1,0 +1,52 @@
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
+
+from reid.train_model import ReIDTrainModel
+from reid.dataset import ReIDDataset
+from reid.loss import TripletLoss
+from engine.base_trainer import BaseTrainer
+
+
+class ReIDTrainer(BaseTrainer):
+    def __init__(self, model, optimizer, scheduler, device):
+        super().__init__(model, optimizer, scheduler, device)
+        self.ce = nn.CrossEntropyLoss()
+        self.triplet = TripletLoss()
+
+    def train_epoch(self, loader):
+        self.model.train()
+        total_loss = 0
+
+        for imgs, labels in loader:
+            imgs = imgs.to(self.device)
+            labels = labels.to(self.device)
+
+            emb, logits = self.model(imgs)
+            loss = self.ce(logits, labels)
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+
+            total_loss += loss.item()
+
+        return total_loss / len(loader)
+
+
+def main():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    dataset = ReIDDataset("data/reid")
+    loader = DataLoader(dataset, batch_size=64, shuffle=True)
+
+    model = ReIDTrainModel(num_ids=dataset.num_ids).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 20)
+
+    trainer = ReIDTrainer(model, optimizer, scheduler, device)
+    trainer.train(loader, epochs=60)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,18 @@
+task: fusion
+
+dataset:
+  type: RGBT
+  root: data/fusion
+  img_size: 640
+
+model:
+  name: FusionDetector
+  fusion_type: concat
+  pretrained_backbone: weights/univisionx_backbone.pth
+
+train:
+  epochs: 80
+  batch_size: 8
+  optimizer:
+    type: AdamW
+    lr: 0.0002
